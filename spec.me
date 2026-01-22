@@ -1,0 +1,39 @@
+# Forecast-to-Fill (Paper Implementation Spec)
+
+Goal: Reproduce paper strategy in Python using daily Gold data (demo: yfinance GC=F).
+
+Timeframe: Daily
+Backtest: Walk-forward. Train 10 years, test next 6 months. Freeze parameters per window.
+
+Signal:
+- y_t = log(Close)
+- Smoothed price: y_tilde[t] = lambda*y_tilde[t-1] + (1-lambda)*y_t
+- slope = y_tilde[t] - y_tilde[t-1]
+- z = (slope - mean_train) / std_train
+- clip z in [-3, 3]
+- p_trend = (z + 3) / 6
+- m_t = 1 if Close / Close[t-50] > 1 else 0
+- p_bull = 0.6*p_trend + 0.4*m_t
+
+Entry:
+- Long when p_bull >= 0.52 AND slope > 0
+- Flat otherwise
+
+Risk / sizing:
+- EWMA variance forecast with theta=0.94
+- target annual vol = 15%
+- leverage cap = 2.0
+- f_star from friction-adjusted Kelly (optional phase 2)
+- baseline allocation = 25% when f_star tiny
+
+Exits:
+- ATR14 hard stop = entry - 2*ATR
+- trailing stop = 1.5*ATR
+- time exit = 30 trading days
+Costs:
+- linear cost 0.7 bps per round-trip (phase 2)
+Impact:
+- gamma 0.02 sqrt-impact (phase 3 / capacity)
+
+Capital cap:
+- Use max 20000 USD notional base (min(equity, 20000))
